@@ -175,7 +175,26 @@ def tpt_script_generator(job):
         w.write(sql + " \n")
     return [tptjobname,filename]
         
-        
+
+def tptexport(tptscrptnm):
+    print("SeethaRama")
+    print(tptscrptnm)
+    #cmd=f"tbuild -f {tptscrptnm} -C"
+    cmd = ["tbuild", "-f", tptscrptnm, "-C"]
+    #t=subprocess.run(cmd,shell=True,stdout=subprocess.PIPE)
+    print("Damodhara")
+    print(cmd)
+    t=subprocess.run(cmd, capture_output=True, text=True)
+    
+    print(t.returncode)
+    
+    print("SriRanga")
+    print(t.stdout)
+    #print(t.stdout)    
+
+
+
+
 if __name__ == "__main__":
     print("SriRama")
     sta=time.time()
@@ -222,13 +241,10 @@ if __name__ == "__main__":
     '''
     
     with ThreadPoolExecutor() as executor:
-        status = {executor.submit(tpt_script_generator, job): job for job in configtable}
-        for return_code in as_completed(status):
+        status_code_tpt_scr_gen = {executor.submit(tpt_script_generator, job): job for job in configtable}
+        for return_code in as_completed(status_code_tpt_scr_gen):
             print(return_code.result(),"Return Code")
             
-
-
-
     #status=tpt_script_generator(configtable)
     #print("Krishna")
     #print(status)
@@ -249,8 +265,18 @@ if __name__ == "__main__":
         print(t.stdout)
         #print(t.stdout)
     '''
-
-
+    #EXPORT FILES FROM TERADATA
+    
+    with ProcessPoolExecutor() as executor:
+        print("Kanna")
+        status_code_tpt={executor.submit(tptexport,tptscrptnm): tptscrptnm for tptscrptnm in tpt_jobs}
+    
+    '''
+    for tptscrptnm in tpt_jobs:
+        print("Export started for :" ,tptscrptnm)
+        tptexport(tptscrptnm)
+        print("Export Completed for :",tptscrptnm)
+    '''
 
     print("Extraction completed")
     print(tpt_jobs)
