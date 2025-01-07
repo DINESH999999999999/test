@@ -15,6 +15,7 @@ import snowflake.connector
 import teradatasql
 import pandas as pd
 from getcolumns import getcolumninfo
+from awsupload import s3upload
 import snowflake.snowpark as snowpark
 from snowflake.snowpark import Session
 
@@ -45,7 +46,7 @@ def tpt_script_generator(job):
 
     tptexpdir=r'/media/ssd/exportfiles'
     tptjobname=tddbname+"_"+tdtablename+"_TPT_JOB"
-    filename=tddbname+"_"+tdtablename+"_TPT_"+curr_datetime+".csv"
+    exportfilename=tddbname+"_"+tdtablename+"_TPT_"+curr_datetime+".csv"
     schemaname=f"TPT_SCH_{tdtablename}"
     selsmnt=""
     
@@ -98,13 +99,13 @@ def tpt_script_generator(job):
     tpt_extract_query=selsmnt + f" FROM {tddbname}.{tdtablename} WHERE "+condition+";"
     
     print(tptjobname)
-    print(filename)        
+    print(exportfilename)        
     print(tpt_extract_query)
     
     tptfilename=fr"/media/ssd/tptscripts/{tptjobname}.tpt"
     
     print(tptfilename)
-    tpt_jobs.append(tptfilename)
+    tpt_jobs.append([tptfilename,exportfilename])
     
     with open(tptfilename, "w") as w:
     ###USING CHARACTER SET UTF8
@@ -136,7 +137,7 @@ def tpt_script_generator(job):
         (                    
         VARCHAR PrivateLogName =  '{tptjobname}_log',
         VARCHAR DIRECTORYPath = '{tptexpdir}',
-        VARCHAR FileName = '{filename}',
+        VARCHAR FileName = '{exportfilename}',
         VARCHAR IndicatorMode     = 'N',    
         VARCHAR OpenMode          = 'Write',  
         VARCHAR Format            = 'Delimited', 
@@ -173,12 +174,13 @@ def tpt_script_generator(job):
         /*****************************/
 """
         w.write(sql + " \n")
-    return [tptjobname,filename]
+    return [tptjobname,exportfilename]
         
 
-def tptexport(tptscrptnm):
+def tptexport(tptscrptnm,uploadfilename):
     print("SeethaRama")
     print(tptscrptnm)
+    print(uploadfilename)
     #cmd=f"tbuild -f {tptscrptnm} -C"
     cmd = ["tbuild", "-f", tptscrptnm, "-C"]
     #t=subprocess.run(cmd,shell=True,stdout=subprocess.PIPE)
@@ -192,6 +194,11 @@ def tptexport(tptscrptnm):
     print(t.stdout)
     #print(t.stdout)    
 
+    uploadfilename=uploadfilename.replace('.csv','')
+    print(f"S3 LOAD STARTED FOR : {uploadfilename}")
+    
+    s3upload(uploadfilename)
+    print(f"S3 UPLOAD COMPLETED FOR :{uploadfilename}")
 
 
 
@@ -269,7 +276,8 @@ if __name__ == "__main__":
     
     with ProcessPoolExecutor() as executor:
         print("Kanna")
-        status_code_tpt={executor.submit(tptexport,tptscrptnm): tptscrptnm for tptscrptnm in tpt_jobs}
+        status_code_tpt={executor.submit(tptexport,tptscptnm_filename[0],tptscptnm_filename[1]): tptscptnm_filename for tptscptnm_filename in tpt_jobs}
+
     
     '''
     for tptscrptnm in tpt_jobs:
