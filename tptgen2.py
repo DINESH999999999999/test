@@ -16,8 +16,11 @@ import teradatasql
 import pandas as pd
 from getcolumns import getcolumninfo
 from awsupload import s3upload
+from ddlcmd import create_table
+from sfutils import copycommand
 import snowflake.snowpark as snowpark
 from snowflake.snowpark import Session
+
 
 print("kasava")
 
@@ -105,7 +108,7 @@ def tpt_script_generator(job):
     tptfilename=fr"/media/ssd/tptscripts/{tptjobname}.tpt"
     
     print(tptfilename)
-    tpt_jobs.append([tptfilename,exportfilename])
+    tpt_jobs.append([tptfilename,exportfilename,job])
     
     with open(tptfilename, "w") as w:
     ###USING CHARACTER SET UTF8
@@ -177,10 +180,17 @@ def tpt_script_generator(job):
     return [tptjobname,exportfilename]
         
 
-def tptexport(tptscrptnm,uploadfilename):
+def tptexport(tptscrptnm,uploadfilename,jobdetails):
+
+    sfdatabasename=jobdetails[2]
+    sfschemaname=jobdetails[3]
+    sftablename=jobdetails[4]
+    delimiter=jobdetails[10]
+
     print("SeethaRama")
     print(tptscrptnm)
     print(uploadfilename)
+    print(jobdetails)
     #cmd=f"tbuild -f {tptscrptnm} -C"
     cmd = ["tbuild", "-f", tptscrptnm, "-C"]
     #t=subprocess.run(cmd,shell=True,stdout=subprocess.PIPE)
@@ -200,8 +210,15 @@ def tptexport(tptscrptnm,uploadfilename):
     s3upload(uploadfilename)
     print(f"S3 UPLOAD COMPLETED FOR :{uploadfilename}")
 
+    create_table(sfdatabasename,sfschemaname,sftablename,uploadfilename)
+    print("TABLE CREATION COMPLETED",sfdatabasename,sfschemaname,sftablename,uploadfilename)
 
+    print("COPY COMMAND STARTED FOR :",sftablename)
+    copycommand(jobdetails,uploadfilename)
+    
+    print("COPY COMMAND COMPLETED FOR :",sftablename)
 
+    
 if __name__ == "__main__":
     print("SriRama")
     sta=time.time()
@@ -276,7 +293,7 @@ if __name__ == "__main__":
     
     with ProcessPoolExecutor() as executor:
         print("Kanna")
-        status_code_tpt={executor.submit(tptexport,tptscptnm_filename[0],tptscptnm_filename[1]): tptscptnm_filename for tptscptnm_filename in tpt_jobs}
+        status_code_tpt={executor.submit(tptexport,tptscptnm_filename[0],tptscptnm_filename[1],tptscptnm_filename[2]): tptscptnm_filename for tptscptnm_filename in tpt_jobs}
 
     
     '''
